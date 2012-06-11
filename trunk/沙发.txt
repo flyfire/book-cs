@@ -1,0 +1,118 @@
+/*
+Author: 不叫花花白
+Usage ：
+	step1. 打开百度贴吧之英雄志吧（其他贴吧修改“贴吧首页url”即可，从浏览器地址栏复制），
+	step2. case chrome浏览器: 在页面任意处右键，选择“审查元素”--Console（控制台），输入以下代码，回车即可
+		   case IE浏览器按F12(或菜单“工具”——“开发人员工具”），选择“脚本”，然后“控制台”，点“多行模式”，输入以下代码，回车即可
+*/
+var g_indexUrl = "http://tieba.baidu.com/f?kw=%D3%A2%D0%DB%D6%BE"; //《英雄志》百度贴吧首页url
+function GetById(id)
+{
+	if ($("#"+id).length == 0)
+	{
+		$("body").append("<iframe id='"+id+"'></iframe>");
+	}
+	return $('#'+id);
+}
+$("body").html("<div style='font-size:20px;line-height:20px;font-weight:bolder;padding:42px'>沙发大业,重启次数:<span id='_reloadCount'>0</span></div>");
+var titleContainer = GetById("_titleContainer");
+var replyZeroContainer = GetById("_replyZeroContainer");
+var g_replyCount = 0;
+function doRefreshTitle()
+{
+	g_replyCount = 0;
+	window.setTimeout("RefreshTitle()",200);
+}
+function RefreshTitle()
+{
+	var url = g_indexUrl + "&_="+Math.random();
+	titleContainer.attr("src",url);
+}
+function RndIndex(start,end)
+{
+	return Math.floor(Math.random() * (end - start) + start);
+}
+function ReplyIt()
+{
+	if (g_replyCount != 1) return;
+	var win = replyZeroContainer[0].contentWindow;
+	if (!win || !win.rich_postor){
+		doRefreshTitle();
+		return;
+	}
+	if (parseInt($("div.l_thread_info ul.l_posts_num span.d_red_num:first",replyZeroContainer.contents()).html())>1) 
+	{
+		doRefreshTitle();
+		return;
+	}
+	var c= win.rich_postor._getData();
+	var idx = RndIndex(1,56);
+	if (idx < 1 || idx > 56) idx = 1;
+	var strIdx = ""+idx;
+	if (strIdx.length <= 1)
+		strIdx = "0"+strIdx;
+	c.content='沙发帝临，天地噤声~O~<BR><IMG class=BDE_Smiley src="http://static.tieba.baidu.com/tb/editor/images/jd/j_00'
+			+ strIdx + '.gif" width=40 height=40 pic_type="">';
+	win.PostHandler.post(win.rich_postor._option.url,c,function(I){
+		doRefreshTitle();
+		//win.rich_postor.showAddResult(I)
+	},function(I){ doRefreshTitle();});
+}
+function LoadContent(href)
+{
+	var url = href+"?_="+Math.random();
+//	alert("load:"+href);
+	replyZeroContainer.attr("src",url);
+}
+var g_watchVar = 0;
+function RobertFirstReply()
+{
+	++g_watchVar;
+	var doc = titleContainer.contents();
+	var thread_list = doc.find('#thread_list');
+	if (thread_list.length != 1) return;
+	var titleObjList = thread_list.find("li");
+	var titleList = [];
+	titleObjList.each(function(){
+		var replyCount = parseInt($(this).find("div.th_rp_num").html());
+		var titleObj = $(this).find("a.th_tit");
+		if (g_replyCount > 0)
+			return false;
+		if (replyCount == 0)
+		{
+			//alert(titleObj.html() + ":" + replyCount);
+			g_replyCount = 1;
+			LoadContent(titleObj.attr("href"));
+			return false;
+		}		
+	});
+	if (g_replyCount == 0)
+		doRefreshTitle();
+}
+var g_lastVar = -1;
+var g_count = 0;
+function WatchDog()
+{
+	++g_count;
+    if (g_lastVar == -1)
+	    g_lastVar = g_watchVar;
+	else
+	{
+		if (g_count >= 3)
+		{
+			if (g_lastVar == g_watchVar)
+			{
+			   //die,restart
+			   RefreshTitle();
+			   var x = $('#_reloadCount');
+			   x.html(parseInt(x.html())+1);
+			}
+			g_count = 0;			
+			g_lastVar = g_watchVar;
+		}
+	}
+}
+titleContainer.load(RobertFirstReply).width(500).height(500);
+replyZeroContainer.load(ReplyIt).width(500).height(500);
+
+window.setInterval("WatchDog()",1000);
